@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 
-const images = [
+const images: string[] = [
   // Nanti diganti dengan foto dari Supabase
 ];
 
@@ -23,7 +23,7 @@ export default function Hero() {
   const hasImages = images.length > 0;
 
   return (
-    <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white">
+    <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-500">
 
       {/* Background */}
       {hasImages && images.map((image, index) => (
