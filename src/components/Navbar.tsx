@@ -1,32 +1,53 @@
 
 "use client";
 
+import { useEffect, useState } from "react";
+
 export default function Navbar() {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    handleScroll();
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <nav className="absolute bg-white top-0 left-0 z-50 w-full px-8 py-6">
+    <nav
+      className={`fixed top-0 left-0 z-50 w-full px-12 py-4 transition-all duration-300 ${
+        isScrolled
+          ? "backdrop-blur-md"
+          : "bg-transparent backdrop-blur-none"
+      }`}
+    >
       <div className="mx-auto flex max-w-7xl items-center justify-between">
-        
         {/* Logo */}
-        <a href="/" className="text-3xl text-blue-500 font-bold tracking-wider">
+        <h1 className="text-4xl font-bold text-cyan-400 drop-shadow-navbar">
           synotion<span className="text-orange-400">.a</span>
-        </a>
+        </h1>
 
         {/* Navigation */}
-        <div className="hidden items-center gap-10 md:flex">
-          <a href="/" className="text-sm transition hover:text-cyan-500">
-            Home
-          </a>
-          <a href="#about" className="text-sm transition hover:text-cyan-500">
-            About
-          </a>
-          <a href="#members" className="text-sm transition hover:text-cyan-500">
-            Members
-          </a>
-          <a href="#gallery" className="text-sm transition hover:text-cyan-500">
-            Gallery
-          </a>
+        <div className="hidden items-center gap-10 md:flex drop-shadow-mine">
+          {["Home", "Subjects", "Members", "Gallery"].map((item) => (
+            <a
+              key={item}
+              href="/"
+              className="relative text-md font-semibold transition hover:text-cyan-400
+                after:absolute after:bottom-[-6px] after:left-1/2
+                after:h-[2px] after:w-0 after:-translate-x-1/2
+                after:bg-cyan-400 after:transition-all after:duration-300
+                hover:after:w-full"
+            >
+              {item}
+            </a>
+          ))}
         </div>
-
       </div>
     </nav>
   );

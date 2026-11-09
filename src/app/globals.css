@@ -19,6 +19,36 @@
   }
 }
 
+@keyframes slideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 1s ease-out both;
+}
+
+.drop-shadow-mine {
+  text-shadow:
+    2px 2px 3px rgba(0, 0, 0, 0.9),
+    4px 4px 8px rgba(0, 0, 0, 0.8),
+    0px 0px 15px rgba(0, 0, 0, 0.6);
+}
+
+.drop-shadow-navbar {
+  text-shadow:
+    2px 2px 3px rgba(0, 0, 0, 0.5),
+    4px 4px 8px rgba(0, 0, 0, 0.4),
+    0px 0px 15px rgba(0, 0, 0, 0.2);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
