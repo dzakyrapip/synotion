@@ -93,13 +93,11 @@ export default function Hero() {
     return () => clearInterval(interval);
   }, [images.length]);
 
-  const hasImages = images.length > 0;
-
   return (
-    <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black">
+    <section className="relative flex min-h-screen items-center overflow-hidden bg-[#15191f]">
 
-      {/* Background */}
-      <div className="absolute inset-0 bg-[#242424] brightness-75">
+      {/* Background Slideshow */}
+      <div className="absolute inset-0">
         {images.map((image, index) => (
           <div
             key={image}
@@ -110,56 +108,88 @@ export default function Hero() {
             }}
           />
         ))}
+
+        {/* Image Overlay */}
+        <div className="absolute inset-0 bg-black/45" />
+
+        {/* Subtle Side Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/15 to-transparent" />
+
+        {/* Bottom Transition */}
+        <div className="absolute bottom-0 left-0 h-64 w-full bg-gradient-to-t from-[#101722] via-[#101722]/55 to-transparent" />
       </div>
 
-      {/* Bottom Gradient */}
-      <div className="absolute bottom-0 left-0 z-[5] h-48 w-full bg-gradient-to-t from-[#101722] via-[#101722]/70 to-transparent" />
-
       {/* Main Content */}
-      <div className="relative z-10 px-6 text-center text-white">
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-6 pb-12 pt-24 md:px-12">
 
-        {/* First Heading */}
-        <h1
-          className="animate-slide-up text-4xl font-bold tracking-tight drop-shadow-mine md:text-6xl"
-          style={{ animationDelay: "500ms" }}
-        >
-          Welcome to{" "}
-          <span className="text-cyan-400">
-            {typedText}
-          </span>
-          <span className="ml-1 inline-block animate-pulse text-blue-400">
-            |
-          </span>
-        </h1>
+        <div className="max-w-4xl text-left">
 
-        {/* Second Heading */}
-        <h2
-          className="animate-slide-up text-xl font-semibold tracking-wide drop-shadow-mine md:text-3xl"
-          style={{ animationDelay: "1200ms" }}
-        >
-          Gudangnya para manusia{" "}
-          <span className="text-orange-400">
-            berkelas.
-          </span>
-        </h2>
+          {/* Eyebrow */}
+          <p
+            className="animate-slide-up mb-6 text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300/90 md:text-sm"
+            style={{ animationDelay: "300ms" }}
+          >
+            Welcome to SYNOTION
+          </p>
 
+          {/* Main Heading */}
+          <h1
+            className="animate-slide-up text-4xl font-bold leading-[1.15] tracking-tight text-white drop-shadow-mine md:text-6xl lg:text-7xl"
+            style={{ animationDelay: "500ms" }}
+          >
+            Welcome to{" "}
+            <span className="text-cyan-400">
+              {typedText}
+              <span className="ml-1 inline-block h-[0.8em] w-[2px] translate-y-1 animate-pulse bg-cyan-400" />
+            </span>
+          </h1>
+
+          {/* Subtitle */}
+          <h2
+            className="animate-slide-up mt-6 text-lg font-medium tracking-wide text-white/85 drop-shadow-mine md:text-2xl"
+            style={{ animationDelay: "800ms" }}
+          >
+            More than just a class.
+          </h2>
+
+          {/* Description */}
+          <p
+            className="animate-slide-up mt-4 max-w-lg text-sm leading-7 text-white/65 md:text-base"
+            style={{ animationDelay: "1000ms" }}
+          >
+            A place to learn, grow, create, and make memories together.
+          </p>
+
+        </div>
       </div>
 
       {/* Slide Indicators */}
       {images.length > 1 && (
-        <div className="absolute bottom-10 z-20 flex gap-3">
+        <div className="absolute bottom-12 left-6 z-20 flex items-center gap-2 md:left-12">
           {images.map((_, index) => (
             <button
               key={index}
               onClick={() => setActiveIndex(index)}
               aria-label={`Go to slide ${index + 1}`}
               aria-current={activeIndex === index ? "true" : undefined}
-              className={`h-1.5 rounded-full transition-all duration-300 ${activeIndex === index
-                ? "w-10 bg-white"
-                : "w-4 bg-white/50"
-                }`}
+              className={`h-1 rounded-full transition-all duration-300 ${
+                activeIndex === index
+                  ? "w-9 bg-cyan-400"
+                  : "w-4 bg-white/40 hover:bg-white/70"
+              }`}
             />
           ))}
+        </div>
+      )}
+
+      {/* Slide Counter */}
+      {images.length > 1 && (
+        <div className="absolute bottom-10 right-6 z-20 text-xs font-medium tracking-widest text-white/60 md:right-12">
+          <span className="text-white">
+            {String(activeIndex + 1).padStart(2, "0")}
+          </span>
+          {" / "}
+          {String(images.length).padStart(2, "0")}
         </div>
       )}
 

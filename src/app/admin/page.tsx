@@ -12,6 +12,7 @@ import LogoutButton from "@/components/LogoutButtons";
 import HeroGalleryManager from "@/components/HeroGalleryManager";
 import ClassScheduleManager from "@/components/ClassScheduleManager";
 import AdminSidebarNav from "@/components/AdminSidebarNav";
+import ClassMembersManager from "@/components/ClassMembersManager";
 
 export default function AdminPage() {
   return (
@@ -159,6 +160,9 @@ async function AdminContent() {
 
           {/* Class Schedule Management */}
           <ClassScheduleManager />
+
+          {/* Class Member Management */}
+          <ClassMembersManager />
 
           {/* Footer */}
           <footer className="mt-12 border-t border-slate-200 py-6 text-center text-xs text-slate-400">

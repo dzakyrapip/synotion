@@ -373,11 +373,6 @@ export default function ClassScheduleManager() {
 
                 <div>
                     <div className="flex items-center gap-2">
-                        <CalendarDays
-                            size={20}
-                            className="text-blue-600"
-                        />
-
                         <h2 className="text-xl font-bold">
                             Class Schedule
                         </h2>
