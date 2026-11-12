@@ -399,7 +399,7 @@ export default function ClassSchedule() {
                 </div>
 
                 <Link
-                  href="/schedule"
+                  href="/subjects"
                   className="group inline-flex items-center gap-2 text-sm font-medium text-cyan-400 transition hover:text-cyan-300"
                 >
                   View full schedule
