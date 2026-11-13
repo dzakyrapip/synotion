@@ -48,7 +48,7 @@ function MemberCard({
 
     return (
         <article className="group relative min-w-0 overflow-hidden border border-white/10 bg-[#151f2d] transition duration-300 hover:-translate-y-1 hover:border-cyan-300/40">
-            <div className="relative aspect-[4/4] overflow-hidden bg-[#202d3d]">
+            <div className="relative aspect-[4/5] overflow-hidden bg-[#202d3d]">
                 {image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -189,7 +189,7 @@ export default function ClassMembers() {
                 )}
 
                 {/* Five main positions */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
                     {featured.map((member, index) => (
                         <MemberCard
                             key={FEATURED_ROLES[index]}
