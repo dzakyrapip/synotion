@@ -13,7 +13,7 @@ export default function Navbar() {
         { label: "Home", href: "/" },
         { label: "Subjects", href: "/subjects" },
         { label: "Members", href: "/members" },
-        { label: "Gallery", href: "/gallery" },
+        { label: "Gallery", href: "/Gallery" },
     ];
 
     useEffect(() => {
