@@ -22,9 +22,9 @@ type ClassMember = {
 };
 
 const FEATURED_ROLES = [
-    "Bendahara 1",
     "Ketua Murid",
     "Wakil Ketua",
+    "Bendahara 1",
     "Bendahara 2",
 ];
 
