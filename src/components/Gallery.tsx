@@ -204,7 +204,7 @@ export default function Gallery() {
 
                 {/* Pinterest Masonry Grid */}
                 {!loading && !error && photos.length > 0 && (
-                    <div className="columns-2 gap-3 space-y-3 sm:columns-3 sm:gap-4 sm:space-y-4 lg:columns-4 xl:columns-5">
+                    <div className="columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4">
                         {photos.map((photo, index) => (
                             <button
                                 key={photo.id}
