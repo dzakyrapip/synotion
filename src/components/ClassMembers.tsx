@@ -24,7 +24,6 @@ type ClassMember = {
 const FEATURED_ROLES = [
     "Bendahara 1",
     "Ketua Murid",
-    "Wali Dosen",
     "Wakil Ketua",
     "Bendahara 2",
 ];
