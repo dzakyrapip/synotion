@@ -14,6 +14,7 @@ import {
     Heart,
     Crown,
     SlidersHorizontal,
+    Trophy,
 } from "lucide-react";
 
 type GalleryPhoto = {
@@ -30,6 +31,12 @@ type GalleryItem = GalleryPhoto & {
 type LikeResponse = {
     likeCounts: Record<string, number>;
     likedPhotoIds: string[];
+};
+
+type RankedPhoto = {
+    photo: GalleryItem;
+    likes: number;
+    rank: number;
 };
 
 export default function Gallery() {
@@ -162,6 +169,53 @@ export default function Gallery() {
         return `${year}-${month}-${day}`;
     }
 
+    // Sort all photos by popularity
+    const popularPhotos = [...photos].sort((a, b) => {
+        const likesA = likeCounts[a.id] ?? 0;
+        const likesB = likeCounts[b.id] ?? 0;
+
+        return (
+            likesB - likesA ||
+            new Date(b.created_at).getTime() -
+                new Date(a.created_at).getTime()
+        );
+    });
+
+    // Calculate competition ranking
+    // Example: 100, 100, 80 = Rank 1, 1, 3
+    // Photos with 0 likes are excluded from the podium.
+    const rankedPhotos: RankedPhoto[] = photos
+        .map((photo) => {
+            const likes = likeCounts[photo.id] ?? 0;
+
+            const rank =
+                1 +
+                photos.filter(
+                    (otherPhoto) =>
+                        (likeCounts[otherPhoto.id] ?? 0) > likes
+                ).length;
+
+            return {
+                photo,
+                likes,
+                rank,
+            };
+        })
+        .filter((item) => item.likes > 0 && item.rank <= 3)
+        .sort((a, b) => {
+            return (
+                a.rank - b.rank ||
+                new Date(b.photo.created_at).getTime() -
+                    new Date(a.photo.created_at).getTime()
+            );
+        });
+
+    // Group photos with the same rank
+    const podiumGroups = [1, 2, 3].map((rank) => ({
+        rank,
+        photos: rankedPhotos.filter((item) => item.rank === rank),
+    }));
+
     // Filter and sort photos
     const filteredPhotos = photos
         .filter((photo) => {
@@ -179,11 +233,7 @@ export default function Gallery() {
             const matchesLikes =
                 (likeCounts[photo.id] ?? 0) >= minimumLikes;
 
-            return (
-                matchesCaption &&
-                matchesDate &&
-                matchesLikes
-            );
+            return matchesCaption && matchesDate && matchesLikes;
         })
         .sort((a, b) => {
             const likesA = likeCounts[a.id] ?? 0;
@@ -211,23 +261,6 @@ export default function Gallery() {
             );
         });
 
-    // Top 3 photos based on global like count
-    const topPhotoIds = new Set(
-        [...photos]
-            .sort((a, b) => {
-                const likesA = likeCounts[a.id] ?? 0;
-                const likesB = likeCounts[b.id] ?? 0;
-
-                return (
-                    likesB - likesA ||
-                    new Date(b.created_at).getTime() -
-                        new Date(a.created_at).getTime()
-                );
-            })
-            .slice(0, 3)
-            .map((photo) => photo.id)
-    );
-
     // Selected photo
     const selectedPhoto =
         selectedIndex !== null
@@ -254,6 +287,22 @@ export default function Gallery() {
             (selectedIndex + 1) % filteredPhotos.length
         );
     };
+
+    // Open a podium photo and reset filters
+    function openRankedPhoto(photoId: string) {
+        const index = popularPhotos.findIndex(
+            (photo) => photo.id === photoId
+        );
+
+        if (index === -1) return;
+
+        setSearchQuery("");
+        setDateFrom("");
+        setDateTo("");
+        setMinimumLikes(0);
+        setSortBy("popular");
+        setSelectedIndex(index);
+    }
 
     // Toggle like
     async function handleLike(photoId: string) {
@@ -356,6 +405,34 @@ export default function Gallery() {
         setSelectedIndex(null);
         callback();
     }
+
+    // Podium styling
+    const podiumStyles = {
+        1: {
+            title: "TOP 1",
+            crown: "text-yellow-300",
+            border: "border-yellow-400/40",
+            background: "from-yellow-400/15 to-yellow-400/[0.02]",
+            text: "text-yellow-300",
+            icon: "text-yellow-300",
+        },
+        2: {
+            title: "TOP 2",
+            crown: "text-slate-300",
+            border: "border-slate-300/30",
+            background: "from-slate-300/10 to-slate-300/[0.02]",
+            text: "text-slate-300",
+            icon: "text-slate-300",
+        },
+        3: {
+            title: "TOP 3",
+            crown: "text-orange-400",
+            border: "border-orange-400/30",
+            background: "from-orange-400/10 to-orange-400/[0.02]",
+            text: "text-orange-400",
+            icon: "text-orange-400",
+        },
+    };
 
     return (
         <section
@@ -572,6 +649,158 @@ export default function Gallery() {
                     </div>
                 )}
 
+                {/* Top 3 Podium */}
+                {!loading &&
+                    !error &&
+                    rankedPhotos.length > 0 && (
+                        <div className="mb-12">
+                            <div className="mb-7 text-center">
+                                <div className="mb-3 flex items-center justify-center gap-2 text-cyan-400">
+                                    <Trophy size={19} />
+                                    <span className="text-xs font-semibold uppercase tracking-[0.3em]">
+                                        Community Favorites
+                                    </span>
+                                </div>
+
+                                <h3 className="text-2xl font-bold text-white sm:text-3xl">
+                                    Most Liked{" "}
+                                    <span className="text-cyan-400">
+                                        Photos.
+                                    </span>
+                                </h3>
+
+                                <p className="mt-2 text-sm text-gray-500">
+                                    The most loved moments of our class.
+                                </p>
+                            </div>
+
+                            {/* Podium Layout */}
+                            <div className="grid grid-cols-3 items-start gap-2 sm:gap-5">
+
+                                {/* Order: Top 2, Top 1, Top 3 */}
+                                {[2, 1, 3].map((rank) => {
+                                    const group = podiumGroups.find(
+                                        (item) => item.rank === rank
+                                    );
+
+                                    if (!group || group.photos.length === 0) {
+                                        return (
+                                            <div
+                                                key={rank}
+                                                className="hidden sm:block"
+                                            />
+                                        );
+                                    }
+
+                                    const style =
+                                        podiumStyles[
+                                            rank as keyof typeof podiumStyles
+                                        ];
+
+                                    return (
+                                        <div
+                                            key={rank}
+                                            className={`min-w-0 ${
+                                                rank === 1
+                                                    ? "pt-0"
+                                                    : rank === 2
+                                                      ? "pt-8 sm:pt-10"
+                                                      : "pt-12 sm:pt-16"
+                                            }`}
+                                        >
+                                            {/* Rank Header */}
+                                            <div className="mb-3 flex flex-col items-center text-center">
+                                                <Crown
+                                                    size={
+                                                        rank === 1 ? 34 : 25
+                                                    }
+                                                    fill="currentColor"
+                                                    className={`${style.crown} mb-2`}
+                                                />
+
+                                                <span
+                                                    className={`text-xs font-black tracking-widest sm:text-sm ${style.text}`}
+                                                >
+                                                    {style.title}
+                                                </span>
+
+                                                {group.photos.length > 1 && (
+                                                    <span className="mt-1 text-[10px] text-gray-500 sm:text-xs">
+                                                        {group.photos.length} tied
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Photos in the same rank */}
+                                            <div className="space-y-3">
+                                                {group.photos.map(
+                                                    ({ photo, likes }) => (
+                                                        <button
+                                                            key={photo.id}
+                                                            type="button"
+                                                            onClick={() =>
+                                                                openRankedPhoto(
+                                                                    photo.id
+                                                                )
+                                                            }
+                                                            className={`group relative block w-full overflow-hidden rounded-xl border bg-gradient-to-b p-1.5 text-left transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:rounded-2xl sm:p-2 ${
+                                                                style.border
+                                                            } ${
+                                                                style.background
+                                                            } ${
+                                                                rank === 1
+                                                                    ? "shadow-lg shadow-yellow-400/5"
+                                                                    : ""
+                                                            }`}
+                                                        >
+                                                            <div className="relative overflow-hidden rounded-lg bg-[#0b111b] sm:rounded-xl">
+                                                                <img
+                                                                    src={
+                                                                        photo.imageUrl
+                                                                    }
+                                                                    alt={
+                                                                        photo.caption ||
+                                                                        "Class memory"
+                                                                    }
+                                                                    loading="lazy"
+                                                                    className={`w-full object-cover transition duration-500 group-hover:scale-105 ${
+                                                                        rank === 1
+                                                                            ? "h-36 sm:h-64"
+                                                                            : "h-28 sm:h-48"
+                                                                    }`}
+                                                                />
+
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+                                                                <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full bg-black/70 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-md sm:bottom-3 sm:left-3 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs">
+                                                                    <Heart
+                                                                        size={13}
+                                                                        fill="currentColor"
+                                                                        className="text-red-500"
+                                                                    />
+                                                                    {likes}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="px-1 pb-1 pt-2 sm:px-2 sm:pb-2">
+                                                                <p className="line-clamp-2 text-[10px] leading-relaxed text-gray-300 sm:text-xs">
+                                                                    {photo.caption ||
+                                                                        "Class Memory"}
+                                                                </p>
+                                                            </div>
+                                                        </button>
+                                                    )
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="mt-7 border-b border-white/10" />
+                        </div>
+                    )}
+
                 {/* No Search Results */}
                 {!loading &&
                     !error &&
@@ -596,21 +825,27 @@ export default function Gallery() {
                 {/* Pinterest Masonry Grid */}
                 {!loading && !error && filteredPhotos.length > 0 && (
                     <>
-                        {likesLoading && (
-                            <p className="mb-4 flex items-center gap-2 text-xs text-gray-500">
-                                <LoaderCircle
-                                    size={14}
-                                    className="animate-spin"
-                                />
-                                Updating like rankings...
-                            </p>
-                        )}
+                        <div className="mb-5 flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-white">
+                                All Memories
+                            </h3>
+
+                            {likesLoading && (
+                                <p className="flex items-center gap-2 text-xs text-gray-500">
+                                    <LoaderCircle
+                                        size={14}
+                                        className="animate-spin"
+                                    />
+                                    Updating rankings...
+                                </p>
+                            )}
+                        </div>
 
                         <div className="columns-2 gap-2 sm:columns-2 sm:gap-3 lg:columns-3 xl:columns-4">
                             {filteredPhotos.map((photo, index) => {
                                 const likes = likeCounts[photo.id] ?? 0;
-                                const isLiked = likedPhotoIds.includes(photo.id);
-                                const isTopThree = topPhotoIds.has(photo.id);
+                                const isLiked =
+                                    likedPhotoIds.includes(photo.id);
 
                                 return (
                                     <div
@@ -628,27 +863,21 @@ export default function Gallery() {
                                         >
                                             <img
                                                 src={photo.imageUrl}
-                                                alt={photo.caption || "Class memory"}
+                                                alt={
+                                                    photo.caption ||
+                                                    "Class memory"
+                                                }
                                                 loading="lazy"
                                                 className="block h-auto w-full transition duration-500 group-hover:scale-[1.03]"
                                             />
                                         </button>
 
-                                        {/* Top 3 Crown */}
-                                        {isTopThree && (
-                                            <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full border border-yellow-400/30 bg-black/70 px-3 py-1.5 text-xs font-semibold text-yellow-300 backdrop-blur-md">
-                                                <Crown
-                                                    size={15}
-                                                    fill="currentColor"
-                                                />
-                                                Top 3
-                                            </div>
-                                        )}
-
                                         {/* Like Button */}
                                         <button
                                             type="button"
-                                            onClick={() => handleLike(photo.id)}
+                                            onClick={() =>
+                                                handleLike(photo.id)
+                                            }
                                             disabled={
                                                 !deviceId ||
                                                 likingPhoto !== null ||
@@ -727,7 +956,10 @@ export default function Gallery() {
                         <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black/40">
                             <img
                                 src={selectedPhoto.imageUrl}
-                                alt={selectedPhoto.caption || "Class memory"}
+                                alt={
+                                    selectedPhoto.caption ||
+                                    "Class memory"
+                                }
                                 className="max-h-[65vh] w-full object-contain md:max-h-[85vh]"
                             />
                         </div>
@@ -744,7 +976,8 @@ export default function Gallery() {
                                 </h3>
 
                                 <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-7 text-gray-300">
-                                    {selectedPhoto.caption || "No caption available."}
+                                    {selectedPhoto.caption ||
+                                        "No caption available."}
                                 </p>
 
                                 {/* Upload Date */}
@@ -781,29 +1014,38 @@ export default function Gallery() {
                                     <Heart
                                         size={18}
                                         fill={
-                                            likedPhotoIds.includes(selectedPhoto.id)
+                                            likedPhotoIds.includes(
+                                                selectedPhoto.id
+                                            )
                                                 ? "currentColor"
                                                 : "none"
                                         }
                                         className={
-                                            likedPhotoIds.includes(selectedPhoto.id)
+                                            likedPhotoIds.includes(
+                                                selectedPhoto.id
+                                            )
                                                 ? "text-red-500"
                                                 : "text-gray-300"
                                         }
                                     />
 
-                                    {likedPhotoIds.includes(selectedPhoto.id)
+                                    {likedPhotoIds.includes(
+                                        selectedPhoto.id
+                                    )
                                         ? "Liked"
                                         : "Like Photo"}
 
                                     <span className="text-gray-400">
-                                        ({likeCounts[selectedPhoto.id] ?? 0})
+                                        (
+                                        {likeCounts[selectedPhoto.id] ?? 0}
+                                        )
                                     </span>
                                 </button>
 
                                 {/* Photo Counter */}
                                 <p className="mt-5 text-xs text-gray-500">
-                                    {selectedIndex! + 1} of {filteredPhotos.length} photos
+                                    {selectedIndex! + 1} of{" "}
+                                    {filteredPhotos.length} photos
                                 </p>
                             </div>
 
