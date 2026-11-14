@@ -11,6 +11,9 @@ import {
     ChevronLeft,
     ChevronRight,
     Search,
+    Heart,
+    Crown,
+    SlidersHorizontal,
 } from "lucide-react";
 
 type GalleryPhoto = {
@@ -24,52 +27,212 @@ type GalleryItem = GalleryPhoto & {
     imageUrl: string;
 };
 
+type LikeResponse = {
+    likeCounts: Record<string, number>;
+    likedPhotoIds: string[];
+};
+
 export default function Gallery() {
     const [photos, setPhotos] = useState<GalleryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
 
+    // Like system
+    const [deviceId, setDeviceId] = useState<string | null>(null);
+    const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+    const [likedPhotoIds, setLikedPhotoIds] = useState<string[]>([]);
+    const [likingPhoto, setLikingPhoto] = useState<string | null>(null);
+    const [likesLoading, setLikesLoading] = useState(true);
+
+    // Filters
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
+    const [minimumLikes, setMinimumLikes] = useState(0);
+    const [sortBy, setSortBy] = useState("popular");
+
     // Fetch photos from Supabase
     useEffect(() => {
+        let cancelled = false;
+
         async function fetchPhotos() {
-            const { data, error } = await supabase
-                .from("gallery_photos")
-                .select("id, caption, storage_path, created_at")
-                .order("created_at", { ascending: false });
+            setLoading(true);
+            setError(null);
 
-            if (error) {
-                console.error("Gallery error:", error);
-                setError("Gagal memuat galeri foto.");
-                setLoading(false);
-                return;
+            try {
+                const { data, error } = await supabase
+                    .from("gallery_photos")
+                    .select("id, caption, storage_path, created_at")
+                    .order("created_at", { ascending: false });
+
+                if (error) throw error;
+
+                const items: GalleryItem[] = (data ?? []).map((photo) => ({
+                    ...photo,
+                    imageUrl: supabase.storage
+                        .from("gallery")
+                        .getPublicUrl(photo.storage_path).data.publicUrl,
+                }));
+
+                if (!cancelled) {
+                    setPhotos(items);
+                }
+            } catch (err) {
+                console.error("Gallery fetch error:", err);
+
+                if (!cancelled) {
+                    setError("Gagal memuat galeri foto.");
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
-
-            const items: GalleryItem[] = (data ?? []).map((photo) => ({
-                ...photo,
-                imageUrl: supabase.storage
-                    .from("gallery")
-                    .getPublicUrl(photo.storage_path).data.publicUrl,
-            }));
-
-            setPhotos(items);
-            setLoading(false);
         }
 
         fetchPhotos();
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
-    // Filter photos by caption
-    const filteredPhotos = photos.filter((photo) =>
-        (photo.caption ?? "")
-            .toLowerCase()
-            .includes(searchQuery.trim().toLowerCase())
+    // Initialize device ID and fetch likes
+    useEffect(() => {
+        let cancelled = false;
+
+        async function initializeLikes() {
+            try {
+                let id = localStorage.getItem("synotion_device_id");
+
+                if (!id) {
+                    id = crypto.randomUUID();
+                    localStorage.setItem("synotion_device_id", id);
+                }
+
+                if (cancelled) return;
+
+                setDeviceId(id);
+
+                const response = await fetch(
+                    `/api/gallery/likes?deviceId=${encodeURIComponent(id)}`
+                );
+
+                if (!response.ok) {
+                    throw new Error("Gagal mengambil data like.");
+                }
+
+                const data: LikeResponse = await response.json();
+
+                if (!cancelled) {
+                    setLikeCounts(data.likeCounts ?? {});
+                    setLikedPhotoIds(data.likedPhotoIds ?? []);
+                }
+            } catch (err) {
+                console.error("Fetch likes error:", err);
+            } finally {
+                if (!cancelled) {
+                    setLikesLoading(false);
+                }
+            }
+        }
+
+        initializeLikes();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // Get upload date in Jakarta timezone
+    function getUploadDate(date: string) {
+        const parts = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Jakarta",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).formatToParts(new Date(date));
+
+        const year = parts.find((part) => part.type === "year")?.value;
+        const month = parts.find((part) => part.type === "month")?.value;
+        const day = parts.find((part) => part.type === "day")?.value;
+
+        return `${year}-${month}-${day}`;
+    }
+
+    // Filter and sort photos
+    const filteredPhotos = photos
+        .filter((photo) => {
+            const query = searchQuery.trim().toLowerCase();
+            const caption = (photo.caption ?? "").toLowerCase();
+
+            const matchesCaption = caption.includes(query);
+
+            const uploadDate = getUploadDate(photo.created_at);
+
+            const matchesDate =
+                (!dateFrom || uploadDate >= dateFrom) &&
+                (!dateTo || uploadDate <= dateTo);
+
+            const matchesLikes =
+                (likeCounts[photo.id] ?? 0) >= minimumLikes;
+
+            return (
+                matchesCaption &&
+                matchesDate &&
+                matchesLikes
+            );
+        })
+        .sort((a, b) => {
+            const likesA = likeCounts[a.id] ?? 0;
+            const likesB = likeCounts[b.id] ?? 0;
+
+            if (sortBy === "popular") {
+                return (
+                    likesB - likesA ||
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime()
+                );
+            }
+
+            if (sortBy === "least") {
+                return (
+                    likesA - likesB ||
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime()
+                );
+            }
+
+            return (
+                new Date(b.created_at).getTime() -
+                new Date(a.created_at).getTime()
+            );
+        });
+
+    // Top 3 photos based on global like count
+    const topPhotoIds = new Set(
+        [...photos]
+            .sort((a, b) => {
+                const likesA = likeCounts[a.id] ?? 0;
+                const likesB = likeCounts[b.id] ?? 0;
+
+                return (
+                    likesB - likesA ||
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime()
+                );
+            })
+            .slice(0, 3)
+            .map((photo) => photo.id)
     );
 
     // Selected photo
     const selectedPhoto =
-        selectedIndex !== null ? filteredPhotos[selectedIndex] : null;
+        selectedIndex !== null
+            ? filteredPhotos[selectedIndex] ?? null
+            : null;
 
     const closePopup = () => setSelectedIndex(null);
 
@@ -91,6 +254,54 @@ export default function Gallery() {
             (selectedIndex + 1) % filteredPhotos.length
         );
     };
+
+    // Toggle like
+    async function handleLike(photoId: string) {
+        if (!deviceId || likingPhoto !== null) return;
+
+        setLikingPhoto(photoId);
+
+        try {
+            const response = await fetch("/api/gallery/likes", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    photoId,
+                    deviceId,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.message || "Gagal memperbarui like."
+                );
+            }
+
+            setLikeCounts((current) => ({
+                ...current,
+                [photoId]: data.count,
+            }));
+
+            setLikedPhotoIds((current) =>
+                data.liked
+                    ? [...current.filter((id) => id !== photoId), photoId]
+                    : current.filter((id) => id !== photoId)
+            );
+        } catch (err) {
+            console.error("Like error:", err);
+            window.alert(
+                err instanceof Error
+                    ? err.message
+                    : "Gagal memperbarui like."
+            );
+        } finally {
+            setLikingPhoto(null);
+        }
+    }
 
     // Download photo
     const downloadPhoto = async () => {
@@ -114,9 +325,9 @@ export default function Gallery() {
             link.click();
             link.remove();
 
-            URL.revokeObjectURL(objectUrl);
-        } catch (error) {
-            console.error("Download error:", error);
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        } catch (err) {
+            console.error("Download error:", err);
             window.open(selectedPhoto.imageUrl, "_blank");
         }
     };
@@ -138,7 +349,13 @@ export default function Gallery() {
             document.removeEventListener("keydown", handleKeyDown);
             document.body.style.overflow = "";
         };
-    }, [selectedIndex, photos.length, searchQuery]);
+    }, [selectedIndex, filteredPhotos.length]);
+
+    // Close popup when filters change
+    function resetPopupAndUpdate(callback: () => void) {
+        setSelectedIndex(null);
+        callback();
+    }
 
     return (
         <section
@@ -181,7 +398,7 @@ export default function Gallery() {
                 </div>
 
                 {/* Search Box */}
-                <div className="mb-8">
+                <div className="mb-5">
                     <div className="relative">
                         <Search
                             size={20}
@@ -189,16 +406,130 @@ export default function Gallery() {
                         />
 
                         <input
-                            type="text"
+                            type="search"
                             value={searchQuery}
-                            onChange={(event) => {
-                                setSearchQuery(event.target.value);
-                                setSelectedIndex(null);
-                            }}
+                            onChange={(event) =>
+                                resetPopupAndUpdate(() =>
+                                    setSearchQuery(event.target.value)
+                                )
+                            }
                             placeholder="Search photos by caption..."
                             className="w-full rounded-xl border border-white/10 bg-[#111b29] py-4 pl-12 pr-5 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-cyan-400/50"
                         />
                     </div>
+                </div>
+
+                {/* Gallery Filters */}
+                <div className="mb-8 rounded-2xl border border-white/10 bg-[#111b29] p-4 sm:p-5">
+                    <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
+                        <SlidersHorizontal
+                            size={17}
+                            className="text-cyan-400"
+                        />
+                        Filter Gallery
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+                        {/* Date From */}
+                        <div>
+                            <label className="mb-2 block text-xs text-gray-400">
+                                Upload From
+                            </label>
+
+                            <input
+                                type="date"
+                                value={dateFrom}
+                                max={dateTo || undefined}
+                                onChange={(event) =>
+                                    resetPopupAndUpdate(() =>
+                                        setDateFrom(event.target.value)
+                                    )
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-[#0b111b] px-3 py-3 text-sm text-white outline-none focus:border-cyan-400/50"
+                            />
+                        </div>
+
+                        {/* Date To */}
+                        <div>
+                            <label className="mb-2 block text-xs text-gray-400">
+                                Upload Until
+                            </label>
+
+                            <input
+                                type="date"
+                                value={dateTo}
+                                min={dateFrom || undefined}
+                                onChange={(event) =>
+                                    resetPopupAndUpdate(() =>
+                                        setDateTo(event.target.value)
+                                    )
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-[#0b111b] px-3 py-3 text-sm text-white outline-none focus:border-cyan-400/50"
+                            />
+                        </div>
+
+                        {/* Minimum Likes */}
+                        <div>
+                            <label className="mb-2 block text-xs text-gray-400">
+                                Minimum Likes
+                            </label>
+
+                            <input
+                                type="number"
+                                min="0"
+                                value={minimumLikes}
+                                onChange={(event) =>
+                                    resetPopupAndUpdate(() =>
+                                        setMinimumLikes(
+                                            Math.max(
+                                                0,
+                                                Number(event.target.value) || 0
+                                            )
+                                        )
+                                    )
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-[#0b111b] px-3 py-3 text-sm text-white outline-none focus:border-cyan-400/50"
+                            />
+                        </div>
+
+                        {/* Sort */}
+                        <div>
+                            <label className="mb-2 block text-xs text-gray-400">
+                                Sort By
+                            </label>
+
+                            <select
+                                value={sortBy}
+                                onChange={(event) =>
+                                    resetPopupAndUpdate(() =>
+                                        setSortBy(event.target.value)
+                                    )
+                                }
+                                className="w-full rounded-lg border border-white/10 bg-[#0b111b] px-3 py-3 text-sm text-white outline-none focus:border-cyan-400/50"
+                            >
+                                <option value="popular">Most Liked</option>
+                                <option value="newest">Newest</option>
+                                <option value="least">Least Liked</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Reset Filters */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSelectedIndex(null);
+                            setSearchQuery("");
+                            setDateFrom("");
+                            setDateTo("");
+                            setMinimumLikes(0);
+                            setSortBy("popular");
+                        }}
+                        className="mt-4 text-xs font-medium text-cyan-400 transition hover:text-cyan-300"
+                    >
+                        Reset Filters
+                    </button>
                 </div>
 
                 {/* Loading */}
@@ -223,7 +554,7 @@ export default function Gallery() {
                     </div>
                 )}
 
-                {/* Empty State */}
+                {/* Empty Gallery */}
                 {!loading && !error && photos.length === 0 && (
                     <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02] text-center">
                         <ImageIcon
@@ -257,33 +588,102 @@ export default function Gallery() {
                             </h3>
 
                             <p className="mt-2 text-sm text-gray-500">
-                                No photos match &quot;{searchQuery}&quot;.
+                                No photos match your current filters.
                             </p>
                         </div>
                     )}
 
                 {/* Pinterest Masonry Grid */}
                 {!loading && !error && filteredPhotos.length > 0 && (
-                    <div className="columns-2 gap-2 sm:columns-2 sm:gap-3 lg:columns-3 xl:columns-4">
-                        {filteredPhotos.map((photo, index) => (
-                            <button
-                                key={photo.id}
-                                type="button"
-                                onClick={() => setSelectedIndex(index)}
-                                aria-label={`Open photo ${index + 1}`}
-                                className="group relative mb-3 block w-full break-inside-avoid overflow-hidden rounded-xl bg-[#182332] text-left sm:mb-4"
-                            >
-                                <img
-                                    src={photo.imageUrl}
-                                    alt={photo.caption || "Class memory"}
-                                    loading="lazy"
-                                    className="block h-auto w-full transition duration-500 group-hover:scale-[1.03]"
+                    <>
+                        {likesLoading && (
+                            <p className="mb-4 flex items-center gap-2 text-xs text-gray-500">
+                                <LoaderCircle
+                                    size={14}
+                                    className="animate-spin"
                                 />
+                                Updating like rankings...
+                            </p>
+                        )}
 
-                                <div className="pointer-events-none absolute inset-0 bg-black/0 transition duration-300 group-hover:bg-black/15" />
-                            </button>
-                        ))}
-                    </div>
+                        <div className="columns-2 gap-2 sm:columns-2 sm:gap-3 lg:columns-3 xl:columns-4">
+                            {filteredPhotos.map((photo, index) => {
+                                const likes = likeCounts[photo.id] ?? 0;
+                                const isLiked = likedPhotoIds.includes(photo.id);
+                                const isTopThree = topPhotoIds.has(photo.id);
+
+                                return (
+                                    <div
+                                        key={photo.id}
+                                        className="group relative mb-3 block w-full break-inside-avoid overflow-hidden rounded-xl bg-[#182332] sm:mb-4"
+                                    >
+                                        {/* Open Photo */}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setSelectedIndex(index)
+                                            }
+                                            aria-label={`Open photo ${index + 1}`}
+                                            className="block w-full text-left"
+                                        >
+                                            <img
+                                                src={photo.imageUrl}
+                                                alt={photo.caption || "Class memory"}
+                                                loading="lazy"
+                                                className="block h-auto w-full transition duration-500 group-hover:scale-[1.03]"
+                                            />
+                                        </button>
+
+                                        {/* Top 3 Crown */}
+                                        {isTopThree && (
+                                            <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full border border-yellow-400/30 bg-black/70 px-3 py-1.5 text-xs font-semibold text-yellow-300 backdrop-blur-md">
+                                                <Crown
+                                                    size={15}
+                                                    fill="currentColor"
+                                                />
+                                                Top 3
+                                            </div>
+                                        )}
+
+                                        {/* Like Button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleLike(photo.id)}
+                                            disabled={
+                                                !deviceId ||
+                                                likingPhoto !== null ||
+                                                likesLoading
+                                            }
+                                            aria-label={
+                                                isLiked
+                                                    ? "Unlike photo"
+                                                    : "Like photo"
+                                            }
+                                            className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full border border-white/10 bg-black/70 px-3 py-2 text-sm text-white backdrop-blur-md transition hover:scale-105 disabled:opacity-50"
+                                        >
+                                            <Heart
+                                                size={17}
+                                                fill={
+                                                    isLiked
+                                                        ? "currentColor"
+                                                        : "none"
+                                                }
+                                                className={
+                                                    isLiked
+                                                        ? "text-red-500"
+                                                        : "text-white"
+                                                }
+                                            />
+
+                                            <span className="font-semibold">
+                                                {likes}
+                                            </span>
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -333,7 +733,7 @@ export default function Gallery() {
                         </div>
 
                         {/* Information */}
-                        <div className="flex w-full flex-col justify-between gap-6 p-5 md:w-72 md:shrink-0 md:p-7">
+                        <div className="flex w-full flex-col justify-between gap-6 overflow-y-auto p-5 md:w-72 md:shrink-0 md:p-7">
                             <div>
                                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-cyan-400">
                                     Class Memories
@@ -347,6 +747,7 @@ export default function Gallery() {
                                     {selectedPhoto.caption || "No caption available."}
                                 </p>
 
+                                {/* Upload Date */}
                                 <div className="mt-6 border-t border-white/10 pt-5">
                                     <p className="text-xs uppercase tracking-wider text-gray-500">
                                         Uploaded on
@@ -364,6 +765,43 @@ export default function Gallery() {
                                     </p>
                                 </div>
 
+                                {/* Popup Like */}
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        handleLike(selectedPhoto.id)
+                                    }
+                                    disabled={
+                                        !deviceId ||
+                                        likingPhoto !== null ||
+                                        likesLoading
+                                    }
+                                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+                                >
+                                    <Heart
+                                        size={18}
+                                        fill={
+                                            likedPhotoIds.includes(selectedPhoto.id)
+                                                ? "currentColor"
+                                                : "none"
+                                        }
+                                        className={
+                                            likedPhotoIds.includes(selectedPhoto.id)
+                                                ? "text-red-500"
+                                                : "text-gray-300"
+                                        }
+                                    />
+
+                                    {likedPhotoIds.includes(selectedPhoto.id)
+                                        ? "Liked"
+                                        : "Like Photo"}
+
+                                    <span className="text-gray-400">
+                                        ({likeCounts[selectedPhoto.id] ?? 0})
+                                    </span>
+                                </button>
+
+                                {/* Photo Counter */}
                                 <p className="mt-5 text-xs text-gray-500">
                                     {selectedIndex! + 1} of {filteredPhotos.length} photos
                                 </p>
