@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { CalendarDays, Images, LayoutDashboard } from "lucide-react";
 
 import { verifyToken } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -13,6 +12,7 @@ import HeroGalleryManager from "@/components/HeroGalleryManager";
 import ClassScheduleManager from "@/components/ClassScheduleManager";
 import AdminSidebarNav from "@/components/AdminSidebarNav";
 import ClassMembersManager from "@/components/ClassMembersManager";
+import GalleryManager from "@/components/GalleryManager";
 
 export default function AdminPage() {
   return (
@@ -163,6 +163,9 @@ async function AdminContent() {
 
           {/* Class Member Management */}
           <ClassMembersManager />
+
+          {/* Gallery Management */}
+          <GalleryManager />
 
           {/* Footer */}
           <footer className="mt-12 border-t border-slate-200 py-6 text-center text-xs text-slate-400">

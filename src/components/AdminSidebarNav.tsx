@@ -26,6 +26,11 @@ const navigation = [
         id: "class-schedule-manager",
         icon: CalendarDays,
     },
+    {
+        label: "Gallery Manager",
+        id: "gallery-manager",
+        icon: Images,
+    },
 ];
 
 export default function AdminSidebarNav() {

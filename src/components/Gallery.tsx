@@ -10,6 +10,7 @@ import {
     Download,
     ChevronLeft,
     ChevronRight,
+    Search,
 } from "lucide-react";
 
 type GalleryPhoto = {
@@ -28,7 +29,9 @@ export default function Gallery() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
 
+    // Fetch photos from Supabase
     useEffect(() => {
         async function fetchPhotos() {
             const { data, error } = await supabase
@@ -57,25 +60,39 @@ export default function Gallery() {
         fetchPhotos();
     }, []);
 
+    // Filter photos by caption
+    const filteredPhotos = photos.filter((photo) =>
+        (photo.caption ?? "")
+            .toLowerCase()
+            .includes(searchQuery.trim().toLowerCase())
+    );
+
+    // Selected photo
     const selectedPhoto =
-        selectedIndex !== null ? photos[selectedIndex] : null;
+        selectedIndex !== null ? filteredPhotos[selectedIndex] : null;
 
     const closePopup = () => setSelectedIndex(null);
 
+    // Previous photo
     const showPrevious = () => {
-        if (selectedIndex === null || photos.length === 0) return;
+        if (selectedIndex === null || filteredPhotos.length === 0) return;
 
         setSelectedIndex(
-            (selectedIndex - 1 + photos.length) % photos.length
+            (selectedIndex - 1 + filteredPhotos.length) %
+                filteredPhotos.length
         );
     };
 
+    // Next photo
     const showNext = () => {
-        if (selectedIndex === null || photos.length === 0) return;
+        if (selectedIndex === null || filteredPhotos.length === 0) return;
 
-        setSelectedIndex((selectedIndex + 1) % photos.length);
+        setSelectedIndex(
+            (selectedIndex + 1) % filteredPhotos.length
+        );
     };
 
+    // Download photo
     const downloadPhoto = async () => {
         if (!selectedPhoto) return;
 
@@ -104,6 +121,7 @@ export default function Gallery() {
         }
     };
 
+    // Keyboard navigation
     useEffect(() => {
         if (selectedIndex === null) return;
 
@@ -120,7 +138,7 @@ export default function Gallery() {
             document.removeEventListener("keydown", handleKeyDown);
             document.body.style.overflow = "";
         };
-    }, [selectedIndex, photos.length]);
+    }, [selectedIndex, photos.length, searchQuery]);
 
     return (
         <section
@@ -132,7 +150,7 @@ export default function Gallery() {
             <div className="relative mx-auto max-w-7xl">
 
                 {/* Header */}
-                <div className="mb-12">
+                <div className="mb-10">
                     <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-cyan-400">
                         Our Memories
                     </p>
@@ -157,8 +175,29 @@ export default function Gallery() {
                                 size={18}
                                 className="text-cyan-400"
                             />
-                            {photos.length} Photos
+                            {filteredPhotos.length} Photos
                         </div>
+                    </div>
+                </div>
+
+                {/* Search Box */}
+                <div className="mb-8">
+                    <div className="relative">
+                        <Search
+                            size={20}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"
+                        />
+
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(event) => {
+                                setSearchQuery(event.target.value);
+                                setSelectedIndex(null);
+                            }}
+                            placeholder="Search photos by caption..."
+                            className="w-full rounded-xl border border-white/10 bg-[#111b29] py-4 pl-12 pr-5 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-cyan-400/50"
+                        />
                     </div>
                 </div>
 
@@ -202,10 +241,31 @@ export default function Gallery() {
                     </div>
                 )}
 
+                {/* No Search Results */}
+                {!loading &&
+                    !error &&
+                    photos.length > 0 &&
+                    filteredPhotos.length === 0 && (
+                        <div className="flex min-h-60 flex-col items-center justify-center text-center">
+                            <Search
+                                size={36}
+                                className="mb-4 text-gray-600"
+                            />
+
+                            <h3 className="text-lg font-semibold text-white">
+                                No Photos Found
+                            </h3>
+
+                            <p className="mt-2 text-sm text-gray-500">
+                                No photos match &quot;{searchQuery}&quot;.
+                            </p>
+                        </div>
+                    )}
+
                 {/* Pinterest Masonry Grid */}
-                {!loading && !error && photos.length > 0 && (
-                    <div className="columns-2 gap-2 sm:gap-3 sm:columns-2 lg:columns-3 xl:columns-4">
-                        {photos.map((photo, index) => (
+                {!loading && !error && filteredPhotos.length > 0 && (
+                    <div className="columns-2 gap-2 sm:columns-2 sm:gap-3 lg:columns-3 xl:columns-4">
+                        {filteredPhotos.map((photo, index) => (
                             <button
                                 key={photo.id}
                                 type="button"
@@ -244,7 +304,7 @@ export default function Gallery() {
                     </button>
 
                     {/* Previous */}
-                    {photos.length > 1 && (
+                    {filteredPhotos.length > 1 && (
                         <button
                             type="button"
                             onClick={(event) => {
@@ -305,10 +365,11 @@ export default function Gallery() {
                                 </div>
 
                                 <p className="mt-5 text-xs text-gray-500">
-                                    {selectedIndex! + 1} of {photos.length} photos
+                                    {selectedIndex! + 1} of {filteredPhotos.length} photos
                                 </p>
                             </div>
 
+                            {/* Download */}
                             <button
                                 type="button"
                                 onClick={downloadPhoto}
@@ -321,7 +382,7 @@ export default function Gallery() {
                     </div>
 
                     {/* Next */}
-                    {photos.length > 1 && (
+                    {filteredPhotos.length > 1 && (
                         <button
                             type="button"
                             onClick={(event) => {

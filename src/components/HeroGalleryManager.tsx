@@ -203,7 +203,7 @@ export default function HeroGalleryManager({
     }
 
     return (
-        <div id="gallery" className="mt-10">
+        <div id="gallery" className="mt-10 scroll-mt-8">
 
             {/* Header */}
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
