@@ -177,23 +177,30 @@ export default function Gallery() {
         return (
             likesB - likesA ||
             new Date(b.created_at).getTime() -
-                new Date(a.created_at).getTime()
+            new Date(a.created_at).getTime()
         );
     });
 
     // Calculate competition ranking
     // Example: 100, 100, 80 = Rank 1, 1, 3
     // Photos with 0 likes are excluded from the podium.
+    // Calculate dense ranking
+    // Example: 10, 10, 5, 5 = Rank 1, 1, 2, 2
+    // Photos with 0 likes are excluded from the podium.
+
+    const uniqueLikeCounts = [
+        ...new Set(
+            photos
+                .map((photo) => likeCounts[photo.id] ?? 0)
+                .filter((likes) => likes > 0)
+        ),
+    ].sort((a, b) => b - a);
+
     const rankedPhotos: RankedPhoto[] = photos
         .map((photo) => {
             const likes = likeCounts[photo.id] ?? 0;
 
-            const rank =
-                1 +
-                photos.filter(
-                    (otherPhoto) =>
-                        (likeCounts[otherPhoto.id] ?? 0) > likes
-                ).length;
+            const rank = uniqueLikeCounts.indexOf(likes) + 1;
 
             return {
                 photo,
@@ -206,7 +213,7 @@ export default function Gallery() {
             return (
                 a.rank - b.rank ||
                 new Date(b.photo.created_at).getTime() -
-                    new Date(a.photo.created_at).getTime()
+                new Date(a.photo.created_at).getTime()
             );
         });
 
@@ -243,7 +250,7 @@ export default function Gallery() {
                 return (
                     likesB - likesA ||
                     new Date(b.created_at).getTime() -
-                        new Date(a.created_at).getTime()
+                    new Date(a.created_at).getTime()
                 );
             }
 
@@ -251,7 +258,7 @@ export default function Gallery() {
                 return (
                     likesA - likesB ||
                     new Date(b.created_at).getTime() -
-                        new Date(a.created_at).getTime()
+                    new Date(a.created_at).getTime()
                 );
             }
 
@@ -275,7 +282,7 @@ export default function Gallery() {
 
         setSelectedIndex(
             (selectedIndex - 1 + filteredPhotos.length) %
-                filteredPhotos.length
+            filteredPhotos.length
         );
     };
 
@@ -694,19 +701,18 @@ export default function Gallery() {
 
                                     const style =
                                         podiumStyles[
-                                            rank as keyof typeof podiumStyles
+                                        rank as keyof typeof podiumStyles
                                         ];
 
                                     return (
                                         <div
                                             key={rank}
-                                            className={`min-w-0 ${
-                                                rank === 1
+                                            className={`min-w-0 ${rank === 1
                                                     ? "pt-0"
                                                     : rank === 2
-                                                      ? "pt-8 sm:pt-10"
-                                                      : "pt-12 sm:pt-16"
-                                            }`}
+                                                        ? "pt-8 sm:pt-10"
+                                                        : "pt-12 sm:pt-16"
+                                                }`}
                                         >
                                             {/* Rank Header */}
                                             <div className="mb-3 flex flex-col items-center text-center">
@@ -743,15 +749,12 @@ export default function Gallery() {
                                                                     photo.id
                                                                 )
                                                             }
-                                                            className={`group relative block w-full overflow-hidden rounded-xl border bg-gradient-to-b p-1.5 text-left transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:rounded-2xl sm:p-2 ${
-                                                                style.border
-                                                            } ${
-                                                                style.background
-                                                            } ${
-                                                                rank === 1
+                                                            className={`group relative block w-full overflow-hidden rounded-xl border bg-gradient-to-b p-1.5 text-left transition duration-300 hover:-translate-y-1 hover:shadow-xl sm:rounded-2xl sm:p-2 ${style.border
+                                                                } ${style.background
+                                                                } ${rank === 1
                                                                     ? "shadow-lg shadow-yellow-400/5"
                                                                     : ""
-                                                            }`}
+                                                                }`}
                                                         >
                                                             <div className="relative overflow-hidden rounded-lg bg-[#0b111b] sm:rounded-xl">
                                                                 <img
@@ -763,11 +766,10 @@ export default function Gallery() {
                                                                         "Class memory"
                                                                     }
                                                                     loading="lazy"
-                                                                    className={`w-full object-cover transition duration-500 group-hover:scale-105 ${
-                                                                        rank === 1
+                                                                    className={`w-full object-cover transition duration-500 group-hover:scale-105 ${rank === 1
                                                                             ? "h-36 sm:h-64"
                                                                             : "h-28 sm:h-48"
-                                                                    }`}
+                                                                        }`}
                                                                 />
 
                                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
